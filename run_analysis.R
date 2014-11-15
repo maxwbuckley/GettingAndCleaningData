@@ -54,20 +54,22 @@ subset<-dataset[,1:2]
 newlabels<-merge(subset,activitylabels,by.x=c("Activity"), by.y=c("V1"))
 
 ##Step 2.
-##Here I calculate the mean and stddev for all the measurements.
-means<-apply(dataset[,3:length(dataset)],1,FUN=mean)
-stds<-apply(dataset[,3:length(dataset)],1,FUN=sd)
-    
+##Here I extract only columns that have either the mean or standard deviation using a lovely grep
+meandev<-dataset[,grep("std|mean", colnames(dataset))]
 
-##Here I combine them together to create my new dataset.
-newdataset<-cbind(newlabels[,2:3], means, stds)
-##Just need to add some pretty column names.
-colnames(newdataset)<-c("Subject","Activity","Mean","StdDev")  
+
+##Here I combine the mean and standard deviation columns with my Activity and Subject data to create my new dataset.
+newdataset<-cbind(newlabels[,2:3],meandev)
+colnames(newdataset)[2]<-"Activity"  
+
+##Load the reshape2 library to get access to the melt function to convert my dataframe from wide to long form.
+library("reshape2")
+makelong<-melt(newdataset, id=c("Subject","Activity"))
 
 ##Step 5
 ##Here I use aggregate to find the average as per the instructions for step 5. 
-aggdata<-aggregate(newdataset$Mean, by=list(newdataset$Subject,newdataset$Activity), FUN=mean)
-colnames(aggdata)<-c("Subject","Activity","Mean")  
+aggdata<-aggregate(makelong$value, by=list(makelong$Subject,makelong$Activity,makelong$variable), FUN=mean)
+colnames(aggdata)<-c("Subject","Activity","Variable","Mean")  
 
 ##This writes the output out
 write.table(aggdata,"output.txt",row.names=FALSE)

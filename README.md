@@ -1,15 +1,22 @@
 # Getting and Cleaning Data Assessment.
 
-This is the markdown file for  the Getting and Cleaning Data Assessment. The objective is to explain how the associated scripts work. And the outputs.
 
-The script run_analysis.R has several components. It is to be run from within the folder containing the toplevel samsung data. In my case set as follows.
+This is the markdown file for  the final assessment of the [Coursera Getting and Cleaning Data] course. The objective of this assessment is:
+
+>To demonstrate your ability to collect, work with, and clean a data set. The goal is to prepare tidy data that can be used for later analysis.
+
+
+The script run_analysis.R has several components. It is to be run from within the folder containing the top level of the samsung data. In my case the working directory was set as follows.
+
+
 ```r
 
 setwd("~/R/Getting/final/UCI HAR Dataset")
 
 ```
 
-The main part body of my code is as follows. It basically loads the several seperate files in the samsung dataset into one large. dataset.
+The main part body of my code is as follows. It basically loads the several seperate files in the samsung dataset into one large dataset and returns that. In the process it also names all the variables sensibly.
+
 
 ```r
 
@@ -57,7 +64,7 @@ dataset<-getCompleteDataset()
 
 ```
 
-This returns a 563 row , 10,299 column dataset. The column names being as follows and so on.
+This returns a 563 row , 10,299 column dataset. The column names being as follows. The first two columns Subject and Activity are factors. The subsequent 561 columns are continous floating point numbers.
 
  - Subject (A number refering the subject the observations were made on)
  - Activity (A number refering the the activity level replaced with a word descrption later)
@@ -71,9 +78,9 @@ This returns a 563 row , 10,299 column dataset. The column names being as follow
  - tBodyAcc-mad()-Y
  - tBodyAcc-mad()-Z
  - tBodyAcc-max()-X
- - ......
+ - and so on......
 
-The activity labels mapping as follows
+The activity labels corrected mapping is  as follows:
 
  - 1  WALKING
  - 2	WALKING_UPSTAIRS
@@ -83,7 +90,8 @@ The activity labels mapping as follows
  - 6	LAYING
 
 
-We read them in and join them with the following code.
+We read them into R and join them with  our datasubset using the following code:
+
 
 ```r
 
@@ -97,50 +105,59 @@ newlabels<-merge(subset,activitylabels,by.x=c("Activity"), by.y=c("V1"))
 
 ```
 
-Now I calculate the means and standard deviatons of the measurements (row summaries). And join them on my nicely labeled dataset above.
+Now I select all the mean and standard deviation columns from the measurements and join them on my nicely labeled dataset above.
+
+Then I use melt from the reshape2 library to convert my dataframe to long form.
+
 
 ```r
 
 ##Step 2.
-##Here I calculate the mean and stddev for all the measurements.
-means<-apply(dataset[,3:length(dataset)],1,FUN=mean)
-stds<-apply(dataset[,3:length(dataset)],1,FUN=sd)
-    
+##Here I extract only columns that have either the mean or standard deviation using a lovely grep
+meandev<-dataset[,grep("std|mean", colnames(dataset))]
 
-##Here I combine them together to create my new dataset.
-newdataset<-cbind(newlabels[,2:3], means, stds)
-##Just need to add some pretty column names.
-colnames(newdataset)<-c("Subject","Activity","Mean","StdDev")  
+
+##Here I combine the mean and standard deviation columns with my Activity and Subject data to create my new dataset.
+newdataset<-cbind(newlabels[,2:3],meandev)
+colnames(newdataset)[2]<-"Activity"  
+
+##Load the reshape2 library to get access to the melt function to convert my dataframe from wide to long form.
+library("reshape2")
+makelong<-melt(newdataset, id=c("Subject","Activity"))
 
 ```
 
-At this point newdataset has 10,299 rows and 4 columns as follows.
+At this point the object makelong has 813621 rows and 4 columns as follows.
 
  - Subject (Same as above)
- - Activity (A six level self explanatory factor)
- - Mean (The average of the previous 561 numerical values)
- - StdDev (The standard deviation of the previous 561 numerical values)
+ - Activity (A six level self explanatory labeled factor)
+ - variable (A string explaining what variable the value field refers to.)
+ - value (The value in question)
  
  
 All that remains to do now is create my final output for the assignment. I do that using the final code snippet.
+
 
 ```r
 
 ##Step 5
 ##Here I use aggregate to find the average as per the instructions for step 5. 
-aggdata<-aggregate(newdataset$Mean, by=list(newdataset$Subject,newdataset$Activity), FUN=mean)
-colnames(aggdata)<-c("Subject","Activity","Mean")  
+aggdata<-aggregate(makelong$value, by=list(makelong$Subject,makelong$Activity,makelong$variable), FUN=mean)
+colnames(aggdata)<-c("Subject","Activity","Variable","Mean")  
 
 ##This writes the output out
 write.table(aggdata,"output.txt",row.names=FALSE)
 
 ```
 
-This having the effect of aggregating the mean column for each Subject Activity level pair. Effectively calculating an average of averages. The final aggregate dataset having 180 rows (6 Subjects * 30 Subjects) and 3 columns .
+This having the effect of aggregating the "variable" column for each Subject-Activity,Variable level combination. Effectively calculating an average for each. The final aggregate dataset having 14220 rows (6 Subjects * 30 Subjects * 79 original columns) and 4 columns .
 
  - Subject
  - Activity
- - Mean
+ - Variable
+ - Mean (The average value for that variable for that person for that activity state and for that measurement)
+ 
+
  
  
  
@@ -150,5 +167,5 @@ This having the effect of aggregating the mean column for each Subject Activity 
  
  
  
- 
- 
+ [Coursera Getting and Cleaning Data]:https://www.coursera.org/course/getdata
+ [family of different apply]:https://nsaunders.wordpress.com/2010/08/20/a-brief-introduction-to-apply-in-r/
